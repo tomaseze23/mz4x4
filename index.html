@@ -2078,14 +2078,24 @@ let isAdmin = false;
 let currentUser = null;
 
 async function initUserMode() {
-  // Checkear si hay sesión activa en Supabase
-  if(!DEMO_MODE && sb) {
-    const { data: { session } } = await sb.auth.getSession();
-    if(session) {
-      currentUser = session.user;
+  // Checkear si hay token guardado en localStorage
+  if(!DEMO_MODE && authToken) {
+    try {
+      // Verificar que el token sea válido intentando cargar invoices
+      // (requiere autenticación)
+      await loadInvoices();
+      
+      // Si llegamos acá, el token es válido
       isAdmin = true;
+      currentUser = { email: localStorage.getItem('user_email') || 'Admin' };
       setAdminMode();
       return;
+    } catch(e) {
+      // Token inválido o expirado, limpiar
+      console.log('Token inválido, limpiando sesión');
+      authToken = null;
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_email');
     }
   }
   setClientMode();
@@ -2127,6 +2137,7 @@ async function toggleAdminMode() {
       }
       authToken = null;
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_email');
     }
     currentUser = null;
     setClientMode();
@@ -2221,9 +2232,10 @@ async function verifyAdmin() {
         })
       });
 
-      // Guardar token
+      // Guardar token y email
       authToken = data.session.access_token;
       localStorage.setItem('auth_token', authToken);
+      localStorage.setItem('user_email', email);
       
       currentUser = data.user;
       closeAdminLogin();
@@ -2249,6 +2261,7 @@ async function verifyAdmin() {
             
             authToken = signUpData.session.access_token;
             localStorage.setItem('auth_token', authToken);
+            localStorage.setItem('user_email', email);
             currentUser = signUpData.user;
             
             closeAdminLogin();
